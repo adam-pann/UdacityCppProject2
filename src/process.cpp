@@ -4,30 +4,66 @@
 #include <string>
 #include <vector>
 
+#include "linux_parser.h"
 #include "process.h"
 
 using std::string;
 using std::to_string;
 using std::vector;
 
-// TODO: Return this process's ID
-int Process::Pid() { return 0; }
+Process::Process(int i) : pid_(i) {
+    GetCommand();
+    GetUser();
+    SetRam();
+    SetUpTime();
+    SetCpuUtilization();
+}
 
-// TODO: Return this process's CPU utilization
-float Process::CpuUtilization() { return 0; }
+int Process::Pid() { return pid_; }
 
-// TODO: Return the command that generated this process
-string Process::Command() { return string(); }
+void Process::SetCpuUtilization() {
+    long uptime = LinuxParser::UpTime();
+    float seconds = uptime - LinuxParser::StartTime(Pid());
+    float process_active = LinuxParser::ActiveJiffies(Pid());
 
-// TODO: Return this process's memory utilization
-string Process::Ram() { return string(); }
+    if (seconds != 0){
+        utilization_ = (process_active / seconds);
+    }
+    else {
+        utilization_ = 0;
+    }
+}
 
-// TODO: Return the user (name) that generated this process
-string Process::User() { return string(); }
+float Process::CpuUtilization() const { 
+    return utilization_;
+}
 
-// TODO: Return the age of this process (in seconds)
-long int Process::UpTime() { return 0; }
+string Process::Command() { return command_; }
 
-// TODO: Overload the "less than" comparison operator for Process objects
-// REMOVE: [[maybe_unused]] once you define the function
-bool Process::operator<(Process const& a[[maybe_unused]]) const { return true; }
+void Process::GetCommand() {
+   command_ = LinuxParser::Command(Pid()); 
+}
+
+void Process::SetRam() {
+    memory_usage_ = LinuxParser::Ram(Pid());
+}
+
+string Process::Ram() { return memory_usage_; }
+
+string Process::User() { return user_; }
+
+void Process::GetUser(){
+    user_ = LinuxParser::User(Pid());
+}
+
+void Process::SetUpTime(){
+    uptime_sec_ = LinuxParser::UpTime() - LinuxParser::UpTime(Pid());
+}
+
+long int Process::UpTime() {
+    return uptime_sec_; 
+}
+
+bool Process::operator<(Process const& a) const { 
+    return CpuUtilization() > a.CpuUtilization(); // swap to > to makee sort on greatest first.
+}
